@@ -23,6 +23,7 @@ v_message_bit_length: resq 1
 v_message_idx: resq 1
 v_message_buffer: resb 64
 v_w: resd 80
+v_hex_chars: resb 8
 
 section .text
 global _start
@@ -70,8 +71,18 @@ process_blocks:
     jmp process_blocks
     ;;; main loop end
 post_process:
+    mov ebx, [v_h0]
+    call print_hex
+    mov ebx, [v_h1]
+    call print_hex
+    mov ebx, [v_h2]
+    call print_hex
+    mov ebx, [v_h3]
+    call print_hex
+    mov ebx, [v_h4]
+    call print_hex
     jmp exit
-    
+
 process_block:
     xor rax, rax
 calc_w_loop:
@@ -237,8 +248,55 @@ strlen_loop:
 strlen_end:
     ret 
 
+; print_hex
+print_hex:
+    mov edx, 3d
+print_hex_start:
+    xor eax, eax
+    mov byte al, bl
+    xor ecx, ecx
+    push rdx
+    xor rdx, rdx
+    mov cl, 16d
+    div cl
+    pop rdx
+    ; byte 1
+    cmp al, 9d
+    jg base_char
+    mov byte [edx * 2 + v_hex_chars], 48d ; 48 = 0
+    jmp add_div
+base_char:
+    mov byte [edx * 2 + v_hex_chars], 87d ; 97 = a - 10
+add_div:
+    add [edx * 2 + v_hex_chars], al
+    ; byte 2
+    cmp ah, 9d
+    jg base_char2
+    mov byte [edx * 2 + v_hex_chars + 1], 48d
+    jmp add_div2
+base_char2:
+    mov byte [edx * 2 + v_hex_chars + 1], 87d
+add_div2:
+    add byte [edx * 2 + v_hex_chars + 1], ah
+    dec edx ; counter--
+    cmp edx, -1 ; counter == -1 (Byte count of 32bit)
+    jl print
+    shr ebx, 8 ; pop off last byte
+    jmp print_hex_start
+print:
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, v_hex_chars
+    mov rdx, 8d
+    syscall
+    ret
 exit:
+    mov byte [v_hex_chars], 0xa
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, v_hex_chars
+    mov rdx, 1d
+    syscall
     mov rdi, 0d
     mov rax, 60d
     syscall
-    
